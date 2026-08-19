@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const types = @import("../../core/shared/types.zig");
 
 pub const interactive_mode_enable_sequence = "\x1b[>4;2m\x1b[>1u\x1b[?2004h\x1b[?7l";
@@ -34,6 +35,15 @@ pub fn interactiveModeEnableSequence(tmux: ?[]const u8) []const u8 {
 }
 
 pub fn queryLayout(fd: std.posix.fd_t, footer_rows: u16) !types.Layout {
+    if (comptime builtin.os.tag == .windows) {
+        var info: WindowsConsoleScreenBufferInfo = undefined;
+        if (!GetConsoleScreenBufferInfo(std.Io.File.stdout().handle, &info).toBool()) {
+            return error.UnableToReadTerminalSize;
+        }
+        const rows: u16 = @intCast(info.srWindow.Bottom - info.srWindow.Top + 1);
+        const cols: u16 = @intCast(info.srWindow.Right - info.srWindow.Left + 1);
+        return layoutFromSize(rows, cols, footer_rows);
+    }
     var ws: std.posix.winsize = .{ .row = 0, .col = 0, .xpixel = 0, .ypixel = 0 };
 
     const req: c_int = @intCast(std.c.T.IOCGWINSZ);
@@ -43,6 +53,26 @@ pub fn queryLayout(fd: std.posix.fd_t, footer_rows: u16) !types.Layout {
     }
     return layoutFromSize(ws.row, ws.col, footer_rows);
 }
+
+const WindowsSmallRect = extern struct {
+    Left: i16,
+    Top: i16,
+    Right: i16,
+    Bottom: i16,
+};
+
+const WindowsConsoleScreenBufferInfo = extern struct {
+    dwSize: std.os.windows.COORD,
+    dwCursorPosition: std.os.windows.COORD,
+    wAttributes: u16,
+    srWindow: WindowsSmallRect,
+    dwMaximumWindowSize: std.os.windows.COORD,
+};
+
+extern "kernel32" fn GetConsoleScreenBufferInfo(
+    output: std.os.windows.HANDLE,
+    info: *WindowsConsoleScreenBufferInfo,
+) callconv(.winapi) std.os.windows.BOOL;
 
 pub fn layoutFromSize(rows: u16, cols: u16, footer_rows: u16) !types.Layout {
     if (rows <= footer_rows) return error.TerminalTooSmall;

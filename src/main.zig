@@ -3,6 +3,44 @@ const builtin = @import("builtin");
 const build_options = @import("build_options");
 const io_mod = @import("core/shared/io.zig");
 
+const WindowsFilePermissions = enum(std.os.windows.DWORD) {
+    default_file = 0,
+    _,
+
+    pub const default_dir: @This() = .default_file;
+    pub const executable_file: @This() = .default_file;
+    pub const has_executable_bit = false;
+
+    pub fn fromMode(_: std.posix.mode_t) @This() {
+        return .default_file;
+    }
+
+    pub fn toMode(self: @This()) std.posix.mode_t {
+        return if (self.readOnly()) 0o400 else 0o700;
+    }
+
+    pub fn toAttributes(self: @This()) std.os.windows.FILE.ATTRIBUTE {
+        return @bitCast(@intFromEnum(self));
+    }
+
+    pub fn readOnly(self: @This()) bool {
+        return @intFromEnum(self) & 0x1 != 0;
+    }
+
+    pub fn setReadOnly(self: @This(), read_only: bool) @This() {
+        const attributes = @intFromEnum(self);
+        return @enumFromInt(if (read_only)
+            attributes | 0x1
+        else
+            attributes & ~@as(std.os.windows.DWORD, 0x1));
+    }
+};
+
+pub const std_options_FilePermissions: ?type = if (builtin.os.tag == .windows)
+    WindowsFilePermissions
+else
+    null;
+
 pub const version = "0.0.3";
 
 const app_lifecycle = @import("core/app/app_lifecycle.zig");
@@ -2922,10 +2960,15 @@ fn rawArgs(c_argc: c_int, c_argv: [*][*:0]c_char) []const [*:0]const u8 {
 }
 
 fn argsFromRaw(raw_args: []const [*:0]const u8) std.process.Args {
+    if (comptime builtin.os.tag == .windows) {
+        const command_line = std.os.windows.peb().ProcessParameters.CommandLine;
+        return .{ .vector = command_line.Buffer.?[0 .. command_line.Length / 2] };
+    }
     return .{ .vector = raw_args };
 }
 
 fn environBlockFromRaw(raw_env: RawEnviron) std.process.Environ.Block {
+    if (comptime builtin.os.tag == .windows) return .global;
     var count: usize = 0;
     while (raw_env[count] != null) : (count += 1) {}
     return .{ .slice = raw_env[0..count :null] };
@@ -3302,7 +3345,7 @@ fn handleSigWinchWeb() callconv(.c) void {
     resize_interlock.noteResizeSignal();
 }
 
-const handle_sigwinch: app_lifecycle.ResizeHandler = if (host_target.is_wasm)
+const handle_sigwinch: app_lifecycle.ResizeHandler = if (host_target.is_wasm or builtin.os.tag == .windows)
     handleSigWinchWeb
 else
     handleSigWinchNative;

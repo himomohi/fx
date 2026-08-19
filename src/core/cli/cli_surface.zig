@@ -1506,8 +1506,18 @@ fn runPasteSetup(
 }
 
 fn setupTerminalAvailableDefault(_: ?*anyopaque) bool {
+    if (comptime builtin.os.tag == .windows) {
+        return windowsConsole(std.Io.File.stdin().handle) and
+            windowsConsole(std.Io.File.stderr().handle);
+    }
     return std.c.isatty(std.posix.STDIN_FILENO) != 0 and
         std.c.isatty(std.posix.STDERR_FILENO) != 0;
+}
+
+fn windowsConsole(handle: std.os.windows.HANDLE) bool {
+    if (comptime builtin.os.tag != .windows) return false;
+    var mode: std.os.windows.DWORD = 0;
+    return GetConsoleMode(handle, &mode).toBool();
 }
 
 fn readMaskedKeyDefault(
@@ -1526,7 +1536,11 @@ fn readMaskedKeyDefault(
 
     while (input.items.len < 8 * 1024) {
         var byte: [1]u8 = undefined;
-        if (try std.posix.read(std.posix.STDIN_FILENO, &byte) == 0) return error.SetupCancelled;
+        const read_count = if (comptime builtin.os.tag == .windows) blk: {
+            var stdin_file = std.Io.File.stdin();
+            break :blk try stdin_file.readStreaming(io_mod.getIo(), &.{&byte});
+        } else try std.posix.read(std.posix.STDIN_FILENO, &byte);
+        if (read_count == 0) return error.SetupCancelled;
         switch (byte[0]) {
             '\r', '\n' => {
                 if (input.items.len == 0) continue;
@@ -1554,10 +1568,19 @@ fn readMaskedKeyDefault(
 }
 
 const MaskedKeyRawMode = struct {
-    original: std.posix.termios = undefined,
+    original: if (builtin.os.tag == .windows) std.os.windows.DWORD else std.posix.termios = undefined,
     active: bool = false,
 
     fn enable() !MaskedKeyRawMode {
+        if (comptime builtin.os.tag == .windows) {
+            const handle = std.Io.File.stdin().handle;
+            var self: MaskedKeyRawMode = .{};
+            if (!GetConsoleMode(handle, &self.original).toBool()) return error.NotATerminal;
+            const raw = self.original & ~@as(std.os.windows.DWORD, 0x0002 | 0x0004);
+            if (!SetConsoleMode(handle, raw).toBool()) return error.NotATerminal;
+            self.active = true;
+            return self;
+        }
         if (std.c.isatty(std.posix.STDIN_FILENO) == 0 or
             std.c.isatty(std.posix.STDERR_FILENO) == 0)
         {
@@ -1597,10 +1620,25 @@ const MaskedKeyRawMode = struct {
 
     fn disable(self: *MaskedKeyRawMode) void {
         if (!self.active) return;
+        if (comptime builtin.os.tag == .windows) {
+            _ = SetConsoleMode(std.Io.File.stdin().handle, self.original);
+            self.active = false;
+            return;
+        }
         std.posix.tcsetattr(std.posix.STDIN_FILENO, .FLUSH, self.original) catch {};
         self.active = false;
     }
 };
+
+extern "kernel32" fn GetConsoleMode(
+    handle: std.os.windows.HANDLE,
+    mode: *std.os.windows.DWORD,
+) callconv(.winapi) std.os.windows.BOOL;
+
+extern "kernel32" fn SetConsoleMode(
+    handle: std.os.windows.HANDLE,
+    mode: std.os.windows.DWORD,
+) callconv(.winapi) std.os.windows.BOOL;
 
 fn writeConfigDiagnostics(
     alloc: Allocator,

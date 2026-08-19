@@ -957,6 +957,10 @@ fn unavailableWaitForEnter(_: ?*anyopaque, _: u64) bool {
 }
 
 fn realWaitForEnter(_: ?*anyopaque, timeout_ms: u64) bool {
+    if (comptime builtin.os.tag == .windows) {
+        io_mod.sleep(timeout_ms *| std.time.ns_per_ms);
+        return false;
+    }
     var fds = [_]std.posix.pollfd{.{
         .fd = std.posix.STDIN_FILENO,
         .events = std.posix.POLL.IN,
@@ -1066,7 +1070,9 @@ fn selectTeam(alloc: Allocator, teams: []const Team, current: ?[]const u8) !?usi
     if (teams.len == 1) return 0;
 
     const default_index = defaultTeamIndex(teams, current);
-    const index = if (canUseInteractiveTeamPicker())
+    const index = if (comptime builtin.os.tag == .windows)
+        try selectTeamByLine(alloc, teams, default_index)
+    else if (canUseInteractiveTeamPicker())
         selectTeamInteractive(alloc, teams, default_index) catch |err| switch (err) {
             error.NotATerminal => try selectTeamByLine(alloc, teams, default_index),
             else => return err,
@@ -1140,7 +1146,8 @@ fn selectTeamInteractive(alloc: Allocator, teams: []const Team, default_index: u
 
 fn canUseInteractiveTeamPicker() bool {
     const stdin_tty = std.Io.File.stdin().isTty(io_mod.getIo()) catch false;
-    return stdin_tty and std.c.isatty(std.posix.STDOUT_FILENO) != 0;
+    const stdout_tty = std.Io.File.stdout().isTty(io_mod.getIo()) catch false;
+    return stdin_tty and stdout_tty;
 }
 
 fn renderTeamPicker(

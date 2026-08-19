@@ -1940,6 +1940,7 @@ fn fallbackCommandArtifactDir(alloc: Allocator) ![]u8 {
 }
 
 fn currentProcessId() u64 {
+    if (comptime builtin.os.tag == .windows) return std.os.windows.GetCurrentProcessId();
     return @intCast(std.c.getpid());
 }
 
@@ -2706,6 +2707,7 @@ fn signalChild(
 }
 
 fn signalProcessGroup(pid: std.posix.pid_t, force: bool) !void {
+    if (comptime builtin.os.tag == .windows or builtin.os.tag == .wasi) return;
     std.posix.kill(-pid, if (force) std.posix.SIG.KILL else std.posix.SIG.TERM) catch |err| switch (err) {
         error.ProcessNotFound => {},
         else => return err,

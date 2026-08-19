@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const debug_trace = @import("../shared/debug_trace.zig");
 const io_mod = @import("../shared/io.zig");
 const profile_paths = @import("../shared/profile_paths.zig");
@@ -233,15 +234,17 @@ pub const Store = struct {
             };
             defer home.close();
             self.durable_home = io_mod.openOrCreateVerifiedPrivateDir(&home, profile_paths.root_dir_name) catch |err| switch (err) {
-                error.PrivateStatePermissionsUnsupported, error.DurablePathUnsafe => return err,
+                error.DurablePathUnsafe => return err,
                 else => return error.DurableLayoutFailed,
             };
         }
 
-        self.durable_home.?.dir.setPermissions(
-            io_mod.getIo(),
-            private_dir_permissions,
-        ) catch return error.PrivateStatePermissionsUnsupported;
+        if (comptime builtin.os.tag != .windows) {
+            self.durable_home.?.dir.setPermissions(
+                io_mod.getIo(),
+                private_dir_permissions,
+            ) catch return error.PrivateStatePermissionsUnsupported;
+        }
         const stat = try self.durable_home.?.dir.stat(io_mod.getIo());
         if (stat.kind != .directory) return error.DurablePathUnsafe;
         if (stat.permissions.toMode() & 0o777 != 0o700) {

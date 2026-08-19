@@ -21,9 +21,25 @@ It's open source (Apache-2.0), model-agnostic, and suitable for both local and c
 
 ## Install
 
+macOS and Linux:
+
 ```bash
 curl -fsSL https://fx.sh/setup.sh | bash
 ```
+
+Windows native builds require PowerShell and Zig 0.16.0:
+
+```powershell
+git clone https://github.com/vercel-labs/fx.git
+Set-Location fx
+.\scripts\build-windows.ps1
+.\zig-out\bin\fx.exe status
+```
+
+The Windows port currently supports the CLI, configuration and session state,
+ACP over stdio, and foreground agent runs. Unix sockets, POSIX background
+process groups, the pinned-socket `web_fetch` transport, terminal takeover,
+and self-upgrade remain unavailable on Windows.
 
 ## Run fx
 

@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const debug_trace = @import("../core/shared/debug_trace.zig");
 const devbox_executor = @import("../core/execution/devbox_executor.zig");
@@ -43,6 +44,7 @@ pub fn executeVercel(
 }
 
 fn setVercelHttpTimeout(conn: *std.http.Client.Connection) void {
+    if (comptime builtin.os.tag == .windows) return;
     const sock = conn.stream_writer.stream.socket.handle;
     const timeout = std.posix.timeval{ .sec = vercel_http_timeout_sec, .usec = 0 };
     std.posix.setsockopt(sock, std.posix.SOL.SOCKET, std.posix.SO.RCVTIMEO, std.mem.asBytes(&timeout)) catch |err| {

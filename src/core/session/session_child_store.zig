@@ -992,7 +992,6 @@ pub const SessionChildCapability = struct {
         ) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             error.DurablePathUnsafe => return error.SessionPathUnsafe,
-            error.PrivateStatePermissionsUnsupported => return err,
             error.DurableReplacePostRenameFailed => {
                 try self.impl.setIndeterminate(kind, name);
                 return error.SessionChildCommitIndeterminate;

@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const contracts = @import("contracts.zig");
 const monitor_core = @import("monitor.zig");
 const operation = @import("operation.zig");
@@ -460,7 +461,8 @@ pub const Record = struct {
             return error.InvalidTerminalRecord;
         }
         if (self.takeover_owner_pid) |pid| {
-            _ = std.fmt.parseInt(std.posix.pid_t, pid, 10) catch
+            const ProcessId = if (builtin.os.tag == .windows) u32 else std.posix.pid_t;
+            _ = std.fmt.parseInt(ProcessId, pid, 10) catch
                 return error.InvalidTerminalRecord;
             _ = process_supervisor.ProcessInstanceToken.parse(
                 self.takeover_owner_process_token.?,

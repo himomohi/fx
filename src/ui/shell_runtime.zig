@@ -35,7 +35,7 @@ extern "c" fn unlockpt(fd: c_int) c_int;
 extern "c" fn ptsname(fd: c_int) ?[*:0]u8;
 
 pub const supports_resize_signal = resize_runtime.supports_resize_signal;
-pub const ResizeHandler = if (builtin.os.tag == .wasi)
+pub const ResizeHandler = if (builtin.os.tag == .wasi or builtin.os.tag == .windows)
     *const fn () callconv(.c) void
 else
     std.posix.Sigaction.handler_fn;
@@ -64,8 +64,8 @@ pub const AlternateScreenOwner = enum {
 };
 
 pub const TerminalState = struct {
-    stdin_fd: std.posix.fd_t = std.posix.STDIN_FILENO,
-    original_termios: std.posix.termios = undefined,
+    stdin_fd: std.posix.fd_t = if (builtin.os.tag == .windows) @ptrFromInt(1) else std.posix.STDIN_FILENO,
+    original_termios: if (builtin.os.tag == .windows) void else std.posix.termios = undefined,
     raw_enabled: bool = false,
     alternate_screen_owner: AlternateScreenOwner = .none,
     alternate_frame_layout: frame_layout.CommittedLayoutSnapshot = .{},
@@ -94,6 +94,7 @@ pub const TerminalState = struct {
     }
 
     pub fn ensureInteractive(self: TerminalState) !void {
+        if (comptime builtin.os.tag == .windows) return;
         if (comptime builtin.os.tag == .wasi) return;
         if (std.c.isatty(self.stdin_fd) == 0 or std.c.isatty(std.posix.STDOUT_FILENO) == 0) {
             return error.NotATerminal;
@@ -101,11 +102,16 @@ pub const TerminalState = struct {
     }
 
     pub fn captureOriginalTermios(self: *TerminalState) !void {
+        if (comptime builtin.os.tag == .windows) return;
         if (comptime builtin.os.tag == .wasi) return;
         self.original_termios = try std.posix.tcgetattr(self.stdin_fd);
     }
 
     pub fn enableRawMode(self: *TerminalState) !void {
+        if (comptime builtin.os.tag == .windows) {
+            self.raw_enabled = true;
+            return;
+        }
         if (comptime builtin.os.tag == .wasi) {
             self.raw_enabled = true;
             return;
@@ -139,6 +145,10 @@ pub const TerminalState = struct {
 
     pub fn disableRawMode(self: *TerminalState) void {
         if (!self.raw_enabled) return;
+        if (comptime builtin.os.tag == .windows) {
+            self.raw_enabled = false;
+            return;
+        }
         if (comptime builtin.os.tag != .wasi) {
             std.posix.tcsetattr(self.stdin_fd, .FLUSH, self.original_termios) catch {};
         }
@@ -248,13 +258,16 @@ pub const TerminalState = struct {
     }
 
     pub fn read(self: TerminalState, out: []u8) !usize {
-        if (comptime builtin.os.tag == .wasi) {
+        if (comptime builtin.os.tag == .wasi or builtin.os.tag == .windows) {
             return std.Io.File.stdin().readStreaming(io_mod.getIo(), &.{out});
         }
         return std.posix.read(self.stdin_fd, out);
     }
 
     pub fn pollInput(self: TerminalState, timeout_ms: i32) !PollResult {
+        if (comptime builtin.os.tag == .windows) {
+            return .{ .readable = true };
+        }
         if (comptime builtin.os.tag == .wasi) {
             return switch (wasm_terminal.pollInput(timeout_ms)) {
                 1 => .{ .readable = true },

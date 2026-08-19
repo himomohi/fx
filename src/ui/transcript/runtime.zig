@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const debug_trace = @import("../../core/shared/debug_trace.zig");
 const display_width = @import("../../core/shared/display_width.zig");
 const input_action = @import("../../core/input/input_action.zig");
@@ -4080,7 +4081,10 @@ fn sameFullDiffResolver(
 }
 
 pub const TranscriptRuntime = struct {
-    stdout_file: std.Io.File = std.Io.File.stdout(),
+    stdout_file: std.Io.File = if (builtin.os.tag == .windows)
+        .{ .handle = @ptrFromInt(1), .flags = .{ .nonblocking = false } }
+    else
+        std.Io.File.stdout(),
     sync_updates_enabled: bool = true,
     history_reset_uses_ris: bool = false,
     layout: Layout = undefined,

@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const io_mod = @import("../shared/io.zig");
 const helpers = @import("upgrade_helpers.zig");
 const update_target = @import("update_target.zig");
@@ -65,6 +66,7 @@ pub const AutoUpgrade = struct {
         alloc: Allocator,
         current: update_target.CurrentBuild,
     ) void {
+        if (comptime builtin.os.tag == .windows) return;
         self.thread = std.Thread.spawn(.{}, runLoop, .{ self, alloc, current }) catch return;
     }
 

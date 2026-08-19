@@ -23,6 +23,7 @@ const NapiSurface = enum {
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const windows_debug = target.result.os.tag == .windows and optimize == .Debug;
     const pgso_artifact = b.option(
         PgsoArtifact,
         "pgso-artifact",
@@ -58,9 +59,9 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
             .stack_check = false,
             .stack_protector = false,
-            .omit_frame_pointer = true,
-            .unwind_tables = .none,
-            .error_tracing = false,
+            .omit_frame_pointer = !windows_debug,
+            .unwind_tables = if (windows_debug) .sync else .none,
+            .error_tracing = windows_debug,
             .strip = optimize != .Debug,
         }),
     });

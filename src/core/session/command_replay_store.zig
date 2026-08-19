@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const command_output_content = @import("../tooling/command_output_content.zig");
 const io_mod = @import("../shared/io.zig");
 const types = @import("../shared/types.zig");
@@ -516,7 +517,11 @@ fn createSpool(
         const handle = try std.fmt.allocPrint(
             alloc,
             "fx-command-replay-{d}-{d}-{d}.bin",
-            .{ std.c.getpid(), io_mod.nanoTimestamp(), attempt },
+            .{
+                if (builtin.os.tag == .windows) std.os.windows.GetCurrentProcessId() else std.c.getpid(),
+                io_mod.nanoTimestamp(),
+                attempt,
+            },
         );
         const file = capability.createExclusiveFile(
             alloc,

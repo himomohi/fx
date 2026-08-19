@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const io_mod = @import("../shared/io.zig");
 const profile_paths = @import("../shared/profile_paths.zig");
 const generation_fact_codec = @import("generation_fact_codec.zig");
@@ -289,7 +290,7 @@ pub const Store = struct {
                 &home,
                 profile_paths.root_dir_name,
             ) catch |err| switch (err) {
-                error.PrivateStatePermissionsUnsupported, error.DurablePathUnsafe => return err,
+                error.DurablePathUnsafe => return err,
                 else => return error.DurableLayoutFailed,
             };
         }
@@ -608,6 +609,9 @@ fn openExistingUsageFile(
     dir: std.Io.Dir,
     mode: std.Io.Dir.OpenFileOptions.Mode,
 ) !std.Io.File {
+    if (comptime builtin.os.tag == .windows) {
+        return io_mod.openExistingRegularFile(dir, usage_file, mode);
+    }
     return io_mod.openExistingRegularFile(dir, usage_file, mode) catch |err| switch (err) {
         error.FileControlFailed => error.UsageReadFailed,
         else => err,

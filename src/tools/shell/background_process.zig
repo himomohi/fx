@@ -36,12 +36,55 @@ const blocked_background_wrapper_command = std.fmt.comptimePrint(
     .{ background_ready_byte, background_exit_marker },
 );
 
-pub const provider = background_process_provider.Provider{
+pub const provider = if (builtin.os.tag == .windows) unsupported_provider else native_provider;
+
+const native_provider = background_process_provider.Provider{
     .spawn_prepared_fn = spawnPrepared,
     .capture_token_fn = captureToken,
     .match_token_fn = matchToken,
     .signal_process_fn = signalProcess,
 };
+
+const unsupported_provider = background_process_provider.Provider{
+    .spawn_prepared_fn = unsupportedSpawnPrepared,
+    .capture_token_fn = unsupportedCaptureToken,
+    .match_token_fn = unsupportedMatchToken,
+    .signal_process_fn = unsupportedSignalProcess,
+};
+
+fn unsupportedSpawnPrepared(
+    _: ?*anyopaque,
+    _: Allocator,
+    _: background_process_provider.SpawnRequest,
+) background_process_provider.ProviderError!background_process_provider.PreparedProcess {
+    return error.Unsupported;
+}
+
+fn unsupportedCaptureToken(
+    _: ?*anyopaque,
+    _: Allocator,
+    _: []const u8,
+) background_process_provider.ProviderError!process_supervisor.ProcessInstanceToken {
+    return error.ProcessIdentityUnsupported;
+}
+
+fn unsupportedMatchToken(
+    _: ?*anyopaque,
+    _: Allocator,
+    _: []const u8,
+    _: process_supervisor.ProcessInstanceToken,
+) process_supervisor.TokenMatch {
+    return .unavailable;
+}
+
+fn unsupportedSignalProcess(
+    _: ?*anyopaque,
+    _: Allocator,
+    _: []const u8,
+    _: process_supervisor.ProcessInstanceToken,
+) background_process_provider.ProviderError!void {
+    return error.Unsupported;
+}
 
 const PreparedState = struct {
     alloc: Allocator,
@@ -488,6 +531,7 @@ fn signalProcess(
     pid_text: []const u8,
     expected: process_supervisor.ProcessInstanceToken,
 ) background_process_provider.ProviderError!void {
+    if (comptime builtin.os.tag == .windows) return error.Unsupported;
     switch (matchToken(context, alloc, pid_text, expected)) {
         .matched => {},
         .missing, .mismatched => {

@@ -1,0 +1,33 @@
+name: Windows native
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.16.0"
+      - name: Build and smoke test
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Optimize ReleaseSafe
+      - name: CLI smoke
+        shell: pwsh
+        run: |
+          ./zig-out/bin/fx.exe --help
+          ./zig-out/bin/fx.exe doctor
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: fx-windows-x86_64
+          path: zig-out/bin/fx.exe
+          if-no-files-found: error

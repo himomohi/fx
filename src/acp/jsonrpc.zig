@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const io_mod = @import("../core/shared/io.zig");
 const host_target = @import("../core/hosts/target.zig");
 
@@ -308,6 +309,10 @@ pub const Reader = struct {
                 io_mod.getIo(),
                 &.{destination},
             ) catch return 0;
+        }
+        if (comptime builtin.os.tag == .windows) {
+            var stdin_file = std.Io.File.stdin();
+            return stdin_file.readStreaming(io_mod.getIo(), &.{destination}) catch return 0;
         }
         return std.posix.read(std.posix.STDIN_FILENO, destination) catch return 0;
     }

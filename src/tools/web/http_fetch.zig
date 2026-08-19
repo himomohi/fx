@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const debug_trace = @import("../../core/shared/debug_trace.zig");
 const io_mod = @import("../../core/shared/io.zig");
 const url_policy = @import("url_policy.zig");
@@ -59,10 +60,35 @@ pub const Transport = struct {
 };
 
 pub fn defaultTransport() Transport {
+    if (comptime builtin.os.tag == .windows) {
+        return .{
+            .resolver = .{ .ctx = @ptrCast(&default_resolver_ctx), .resolve = resolveUnsupported },
+            .connector = .{ .ctx = @ptrCast(&default_connector_ctx), .get = connectUnsupported },
+        };
+    }
     return .{
         .resolver = .{ .ctx = @ptrCast(&default_resolver_ctx), .resolve = resolveDefault },
         .connector = .{ .ctx = @ptrCast(&default_connector_ctx), .get = connectDefault },
     };
+}
+
+fn resolveUnsupported(
+    _: *anyopaque,
+    _: Allocator,
+    _: []const u8,
+    _: u16,
+    _: FetchOptions,
+) anyerror![]IpAddress {
+    return error.Unsupported;
+}
+
+fn connectUnsupported(
+    _: *anyopaque,
+    _: Allocator,
+    _: PinnedTarget,
+    _: FetchOptions,
+) anyerror!ConnectorResponse {
+    return error.Unsupported;
 }
 
 pub const PinnedTarget = struct {
@@ -414,6 +440,7 @@ const Dialer = struct {
 };
 
 fn connectDefaultDialer(_: *anyopaque, address: IpAddress, options: FetchOptions) anyerror!posix.fd_t {
+    if (comptime builtin.os.tag == .windows) return error.Unsupported;
     return connectPinned(address, options);
 }
 
@@ -1488,14 +1515,24 @@ fn DeadlineWriter(comptime buffer_len: usize) type {
     };
 }
 
-const PollError = posix.PollError || error{Interrupted};
+const PollFd = if (builtin.os.tag == .windows) extern struct {
+    fd: posix.fd_t,
+    events: i16,
+    revents: i16,
+} else posix.pollfd;
+
+const PollError = if (builtin.os.tag == .windows)
+    error{ Interrupted, Unsupported }
+else
+    posix.PollError || error{Interrupted};
 
 const Poller = struct {
     ctx: ?*anyopaque,
-    poll_fn: *const fn (?*anyopaque, []posix.pollfd, i32) PollError!usize,
+    poll_fn: *const fn (?*anyopaque, []PollFd, i32) PollError!usize,
 };
 
-fn pollDefault(_: ?*anyopaque, fds: []posix.pollfd, timeout_ms: i32) PollError!usize {
+fn pollDefault(_: ?*anyopaque, fds: []PollFd, timeout_ms: i32) PollError!usize {
+    if (comptime builtin.os.tag == .windows) return error.Unsupported;
     const fds_count = std.math.cast(posix.nfds_t, fds.len) orelse
         return error.SystemResources;
     const rc = posix.system.poll(fds.ptr, fds_count, timeout_ms);
@@ -1634,7 +1671,7 @@ fn pollFd(fd: posix.fd_t, events: i16, options: FetchOptions) !void {
 
 fn pollFdWith(fd: posix.fd_t, events: i16, options: FetchOptions, poller: Poller) !void {
     while (true) {
-        var fds = [_]posix.pollfd{.{
+        var fds = [_]PollFd{.{
             .fd = fd,
             .events = events,
             .revents = 0,
@@ -3572,7 +3609,7 @@ const ScriptedPoller = struct {
         return .{ .ctx = @ptrCast(self), .poll_fn = poll };
     }
 
-    fn poll(raw: ?*anyopaque, fds: []posix.pollfd, timeout_ms: i32) PollError!usize {
+    fn poll(raw: ?*anyopaque, fds: []PollFd, timeout_ms: i32) PollError!usize {
         const self: *@This() = @ptrCast(@alignCast(raw.?));
         self.calls += 1;
         self.observed_events = fds[0].events;

@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const io_mod = @import("../shared/io.zig");
 const output_contracts = @import("../output/output_contracts.zig");
 const helpers = @import("upgrade_helpers.zig");
@@ -47,6 +48,7 @@ fn runInner(
     channel: update_target.Channel,
     format: output_contracts.OutputFormat,
 ) RunError!RunResult {
+    if (comptime builtin.os.tag == .windows) return error.FetchFailed;
     var done = std.atomic.Value(bool).init(false);
     var progress = ProgressState{};
     var worker_result = WorkerResult{};
