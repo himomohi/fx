@@ -1,8 +1,29 @@
 # fx
 
-## 0.0.3
+## 0.0.4
 
 <!-- release:start -->
+
+### New Features
+
+- **Native Windows preview:** Build and run fx directly on Windows without WSL, including foreground CLI commands, configuration and sessions, ACP over standard input/output, skills, and MCP integration
+- **Windows release artifact:** Package the native `fx.exe`, license, and third-party notices as a checksummed ZIP in GitHub releases
+- **Korean documentation:** Add a complete Korean README with native Windows setup, capability coverage, and platform limitations
+
+### Improvements
+
+- **Cross-platform runtime:** Add Windows implementations for process launch, paths, environment handling, locking, terminal behavior, and platform capability detection
+- **Project presentation:** Refresh the English README with a compact hero, current badges, quick-start paths, extension surfaces, and an explicit platform support matrix
+- **Windows validation:** Add a pinned Zig 0.16.0 build script, native smoke checks, and a dedicated Windows GitHub Actions workflow
+
+### Known Limitations
+
+- **Windows feature parity:** Unix sockets, Herdr, POSIX background process groups, pinned-socket `web_fetch`, terminal takeover, and self-upgrade are not available in the native Windows preview
+- **Windows test coverage:** POSIX-specific test fixtures do not compile on Windows yet and remain outside the focused native build gate
+
+<!-- release:end -->
+
+## 0.0.3
 
 ### Improvements
 
@@ -16,8 +37,6 @@
 - **Model catalogs:** Reject malformed catalog responses with a nonzero exit instead of treating them as an empty model list
 - **Skill creation:** Show invalid `/skills create` names inline and keep the current session, transcript, and composer usable
 - **GLM 5.2 responses:** Restore responses for fx login sessions without changing requests for other models
-
-<!-- release:end -->
 
 ## 0.0.2
 

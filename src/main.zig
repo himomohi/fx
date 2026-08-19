@@ -41,7 +41,7 @@ pub const std_options_FilePermissions: ?type = if (builtin.os.tag == .windows)
 else
     null;
 
-pub const version = "0.0.3";
+pub const version = "0.0.4";
 
 const app_lifecycle = @import("core/app/app_lifecycle.zig");
 const auth_runtime = @import("core/auth/auth_runtime.zig");
