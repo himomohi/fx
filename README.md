@@ -1,123 +1,178 @@
-```
- ⠀⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀
- ⠀⠀⠀⠀⠀⢰⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
- ⠀⠀⠀⣠⣶⣿⣿⣷⣶⡶⣶⣶⣆⠀⠀⠀⣴⣶⣶⠆
- ⠀⠀⠀⠉⢹⣿⣿⠉⠉⠀⠘⢿⣿⣧⣀⣾⣿⡿⠃⠀             Tiny, open, embeddable, native coding agent.
- ⠀⠀⠀⠀⣼⣿⡏⠀⠀⠀⠀⠀⠻⣿⣿⣿⠟⠀⠀⠀
- ⠀⠀⠀⢀⣿⣿⠃⠀⠀⠀⠀⢠⣦⠘⢿⣿⣷⡀⠀⠀             curl -fsSL https://fx.sh/setup.sh | bash
- ⠀⠀⠀⣸⣿⡟⠀⠀⠀⠀⣰⣿⣿⠗⠀⠻⣿⣿⣄⠀
- ⠀⠀⠀⣿⣿⠇⠀⠀⠀⠾⠿⠿⠋⠀⠀⠀⠘⠿⠿⠦             ⚠ Status: Experimental. Use at your own risk.
-  ⠀⣸⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
- ⣿⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+<div align="center">
+
+```text
+             f x
+     native agent runtime
 ```
 
-fx is a coding agent harness and CLI written in Zig, optimized for research and embeddability as part of larger systems.
+# fx
 
-It focuses on minimalism and performance across the board, from system prompt design to its tools, feature set, and 7.8 MiB binary.
+### A tiny, open, embeddable coding agent built for the terminal
 
-For end users, its CLI output style and form factor aim to be closer to a Unix shell than a heavy "IDE in the terminal" TUI.
+[English](README.md) | [한국어](README.ko.md)
 
-It's open source (Apache-2.0), model-agnostic, and suitable for both local and cloud inference.
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-111827.svg)](LICENSE)
+[![Zig 0.16.0](https://img.shields.io/badge/Zig-0.16.0-f7a41d.svg)](https://ziglang.org/)
+[![Status: Experimental](https://img.shields.io/badge/status-experimental-8b5cf6.svg)](#project-status)
+[![Windows: Native Preview](https://img.shields.io/badge/Windows-native%20preview-2563eb.svg)](#platform-support)
 
-## Install
+Minimal by design. Model agnostic. Native where it matters.
 
-macOS and Linux:
+[Quick start](#quick-start) · [Why fx](#why-fx) · [Embed](#embed-fx) · [Documentation](https://fx.sh/docs)
 
-```bash
+</div>
+
+> [!WARNING]
+> fx is experimental software. Interfaces, configuration, and behavior may change between releases.
+
+## Why fx
+
+fx keeps the agent runtime small enough to understand, modify, and embed without giving up the workflows expected from a modern coding agent.
+
+| Principle | What it means |
+| --- | --- |
+| Native runtime | A compact Zig executable with fast startup and minimal overhead |
+| Model agnostic | Connect to supported providers without binding the runtime to one model |
+| Terminal first | Work where the repository, tools, and developer context already live |
+| Embeddable | Use fx as a CLI, ACP process, or library component |
+| Extensible | Add skills, MCP servers, custom tools, and project instructions |
+| Transparent | Inspect the source, permission model, prompts, and execution flow |
+
+## Quick start
+
+### macOS and Linux
+
+Install the latest release:
+
+```sh
 curl -fsSL https://fx.sh/setup.sh | bash
 ```
 
-Windows native builds require PowerShell and Zig 0.16.0:
+Run the setup flow, then start fx:
+
+```sh
+fx setup
+fx
+```
+
+### Windows native preview
+
+Windows support is currently source-built and focused on foreground CLI and ACP workflows. Install Git and Zig 0.16.0, then run:
 
 ```powershell
 git clone https://github.com/vercel-labs/fx.git
 Set-Location fx
 .\scripts\build-windows.ps1
-.\zig-out\bin\fx.exe status
+.\zig-out\bin\fx.exe setup
+.\zig-out\bin\fx.exe
 ```
 
-The Windows port currently supports the CLI, configuration and session state,
-ACP over stdio, and foreground agent runs. Unix sockets, POSIX background
-process groups, the pinned-socket `web_fetch` transport, terminal takeover,
-and self-upgrade remain unavailable on Windows.
+The build script creates a native `fx.exe` without requiring WSL.
 
-## Run fx
+## Platform support
 
-To get started, sign in with Vercel:
+| Capability | macOS / Linux | Windows native preview |
+| --- | :---: | :---: |
+| Foreground CLI | Supported | Preview |
+| Configuration and sessions | Supported | Preview |
+| ACP over standard input/output | Supported | Preview |
+| Skills and MCP integration | Supported | Preview |
+| Interactive terminal UI | Supported | Partial |
+| Unix sockets and Herdr | Supported | Not available |
+| POSIX background process groups | Supported | Not available |
+| Pinned-socket `web_fetch` | Supported | Not available |
+| Terminal takeover | Supported | Not available |
+| Self-upgrade | Supported | Not available |
 
-```bash
-fx login
-```
+On Windows, fx relies on inherited user-directory ACLs instead of POSIX file modes. The Windows build gate validates compilation and focused native smoke paths; POSIX-specific test fixtures are not part of that gate yet.
 
-Or add an AI Gateway API key:
+## Everyday workflow
 
-```bash
-fx setup
-```
-
-Run fx from a project:
-
-```bash
-cd your_project
+```sh
+# Start an interactive session
 fx
+
+# Ask a single question
+fx ask "Explain the architecture of this repository"
+
+# Inspect the current runtime
+fx status
+
+# Diagnose configuration and provider issues
+fx doctor
+
+# Run fx as an Agent Client Protocol process
+fx acp
 ```
 
-The current directory becomes the primary workspace. Enter a prompt, or run `/help` to browse interactive commands.
+Use project instructions to shape behavior close to the code:
 
-Run `/feedback` to open the feedback form at `fx.sh/feedback`. It does not create a diagnostic or change the clipboard.
-
-Run `/trace` to create a private Markdown diagnostic with logs, session context, runtime state, permissions, and recent activity. On macOS, fx copies the `.md` file to the clipboard; on other platforms, it saves the file and prints its path. Review and redact the trace before sharing it.
-
-Use `fx ask` for a single request:
-
-```bash
-fx ask "explain the changes in this repository"
+```text
+your-project/
+|-- AGENTS.md
+|-- src/
+`-- ...
 ```
 
-fx starts in `auto` permission mode, which reviews unresolved sensitive actions. See [Permissions](https://fx.sh/docs/configure-fx/permissions) for other modes and persistent rules.
-
-Inside a saved session, `/permissions remember <allow|deny> <tool-name> <arguments-json>` stores an exact confirmed rule without running the action. `/permissions` lists stable rule IDs, and `/permissions revoke <rule-id>` removes a stored rule even when its original workspace or file state has changed.
+fx asks before sensitive operations according to its permission policy. Review requested commands and file access as you would with any developer automation.
 
 ## Embed fx
 
-fx builds as a native binary or WebAssembly. Applications embedding fx can provide network transport, session storage, configuration, permission handling, and terminal I/O.
+fx builds as a native binary or WebAssembly. Applications embedding fx can provide network transport, session storage, configuration, permission handling, and terminal input/output.
 
 | Surface | Use |
 | --- | --- |
-| `fx acp` | Connect the native agent to editors and other Agent Client Protocol clients. |
-| `createFxAgent()` | Embed the agent core in a JavaScript host with `fx-core.wasm`. |
-| `createFxTerminal()` | Embed the interactive terminal with `fx-term.wasm`. |
+| `fx acp` | Connect the native agent to editors and other Agent Client Protocol clients |
+| `createFxAgent()` | Embed the agent core in a JavaScript host with `fx-core.wasm` |
+| `createFxTerminal()` | Embed the interactive terminal with `fx-term.wasm` |
 
 The WebAssembly SDK is experimental. See the [WebAssembly SDK](sdk/README.md) and [ACP documentation](https://fx.sh/docs/using-fx/acp).
 
 ## Extend fx
 
-Add reusable instructions with [skills](https://fx.sh/docs/capabilities/skills), connect external tools through [MCP](https://fx.sh/docs/capabilities/mcp), or delegate independent work to [subagents](https://fx.sh/docs/capabilities/subagents). Project instruction files may link within their scope, and read-only workspace or compatibility skill directories may link within their owning workspace or home; managed skills, `SKILL.md` files, resources, and escaping links remain no-follow. `fx status` and `fx doctor` report an invalid trusted MCP profile without starting its servers.
+- Put reusable instructions and workflows in skills.
+- Connect external capabilities through MCP servers.
+- Define repository behavior in `AGENTS.md`.
+- Add native tools directly in Zig when tighter integration is needed.
 
-## Documentation
-
-Read the [fx documentation](https://fx.sh/docs).
+See the [documentation](https://fx.sh/docs) for configuration and extension guides.
 
 ## Build from source
 
-Building fx requires [Zig 0.16.0+](https://ziglang.org/download/):
+Requirements:
 
-```bash
+- Zig 0.16.0
+- Git
+- A supported macOS, Linux, or Windows development environment
+
+```sh
 git clone https://github.com/vercel-labs/fx.git
 cd fx
-zig build -Doptimize=ReleaseSafe
-./zig-out/bin/fx
+zig build
+zig build test
 ```
 
-Run the test suite with `zig build test`. See [CONTRIBUTING.md](CONTRIBUTING.md) for development and contribution guidelines.
+Windows users can run `.\scripts\build-windows.ps1` for the native preview build. Some POSIX-specific tests do not compile on Windows yet.
+
+## Project status
+
+fx is under active development. The macOS and Linux paths are the primary supported environments. Native Windows support is an experimental port and does not yet provide full feature parity.
+
+Bug reports and focused contributions are welcome. Include the operating system, Zig version, exact command, and relevant output when reporting a problem.
+
+## Documentation
+
+- [Documentation](https://fx.sh/docs)
+- [Contributing guide](CONTRIBUTING.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
+- [Korean README](README.ko.md)
 
 ## License
 
-[Apache-2.0](LICENSE)
-
-Third-party licenses and attributions are listed in
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Licensed under the [Apache License 2.0](LICENSE).
 
 ## Credits
+
+Created and maintained by [Vercel Labs](https://github.com/vercel-labs).
 
 Interface sounds by [cuelume](https://github.com/Danilaa1/cuelume).
